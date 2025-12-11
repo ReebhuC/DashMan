@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Incidents</title>
+  </head>
+  <body>
+ <h1>Incidents</h1>
+  <p><a href="/">Back to home</a></p>
+
+    {% if incidents %}
+      <table border="1" cellpadding="6">
+        <caption>Recent incidents</caption>
+        <tr>
+          <th>Time</th>
+          <th>Type</th>
+          <th>Speed</th>
+          <th>Location</th>
+        </tr>
+        {% for inc in incidents %}
+        <tr>
+          <td>{{ inc.time }}</td>
+          <td>{{ inc.type }}</td>
+          <td>{{ inc.speed }}</td>
+          <td>{{ inc.location }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p>No incidents yet.</p>
+    {% endif %}
+  </body>
+</html>
