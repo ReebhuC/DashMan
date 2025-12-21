@@ -1,0 +1,9 @@
+video:
+  input_res: [1280, 720]
+  output_res: [3840, 2160]
+  fps: 15
+models:
+  offline: "RealESRGAN_x4plus.pth"
+  live: "realesr-animevideov3.pth"
+paths:
+  samples: "samples/"
