@@ -17,9 +17,13 @@ def create_app(config_class=Config):
     def ping():
         return {"status": "ok"}
 
-    from . import models        # ensures models are registered
-    from .routes import api_bp  # import the blueprint
+    from . import models
+    from .routes import api_bp
 
-    app.register_blueprint(api_bp)  # no prefix: routes are /events, /incidents
+    app.register_blueprint(api_bp)
+
+    # 👇 ADD THIS
+    with app.app_context():
+        db.create_all()
 
     return app
