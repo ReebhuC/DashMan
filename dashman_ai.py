@@ -28,6 +28,10 @@ class DashManAI:
         self.stream_app = Flask(__name__)
         self.streaming = False
         self.camera_source = 0 
+        
+        # --- SPEED HACK: Turn on GPU Acceleration for Live Stream ---
+        cv2.ocl.setUseOpenCL(True)
+        
         self.sr_live = dnn_superres.DnnSuperResImpl_create()
         self._load_models()
         self.stream_app.add_url_rule('/', 'index', self._index)
@@ -36,20 +40,25 @@ class DashManAI:
         self._init_system()
 
     def _load_models(self):
-        # Live preview still uses ESPCN for speed
+        # --- CHANGED: Use ESPCN x2 for Fastest Live Streaming ---
         live_path = os.path.join(CONFIG['model_dir'], 'ESPCN_x2.pb')
+        
         if os.path.exists(live_path):
             try:
+                print(f"⚡ Loading Live Model: {live_path}")
                 self.sr_live.readModel(live_path)
-                self.sr_live.setModel("espcn", 2)
-            except: pass
+                # Model name is 'espcn', scale is 2
+                self.sr_live.setModel("espcn", 2) 
+            except Exception as e:
+                print(f"❌ Model Load Error: {e}")
+        else:
+            print(f"⚠️ Warning: Model not found at {live_path}")
 
     def _init_system(self):
         if not os.path.exists(CONFIG['video_dir']): os.makedirs(CONFIG['video_dir'])
         conn = sqlite3.connect(CONFIG['db_path'], check_same_thread=False)
         c = conn.cursor()
         
-        # --- FIX: Singular table name 'incident' + correct columns ---
         c.execute('''CREATE TABLE IF NOT EXISTS incident (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT, 
@@ -72,7 +81,6 @@ class DashManAI:
         event_type = random.choice(['COLLISION', 'LANE_DEPARTURE'])
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # Video Handling
         real_test_file = os.path.join(CONFIG['video_dir'], "test_clip.mp4")
         filename = f"incident_real_{int(time.time())}.mp4"
         target_path = os.path.join(CONFIG['video_dir'], filename)
@@ -81,14 +89,12 @@ class DashManAI:
             shutil.copy(real_test_file, target_path)
             print(f"🎬 USING REAL VIDEO: {filename}")
         else:
-            # Fallback dummy video
             out = cv2.VideoWriter(target_path, cv2.VideoWriter_fourcc(*'mp4v'), 10, (640, 480))
             for _ in range(30): out.write(np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8))
             out.release()
 
         rel_path = f"static/{filename}"
         
-        # --- FIX: Insert full telemetry data ---
         conn = sqlite3.connect(CONFIG['db_path'])
         c = conn.cursor()
         c.execute("""
@@ -116,7 +122,7 @@ class DashManAI:
             "filename": filename
         }
 
-    # Stream functions (Unchanged)
+    # Stream functions
     def live_2x(self):
         if self.streaming: return
         self.streaming = True

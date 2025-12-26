@@ -5,19 +5,26 @@ import os
 import time
 
 SERVER_URL = "http://127.0.0.1:5000"
-# --- FIX: Use Fast Model ---
-MODEL_PATH = "app/models/FSRCNN_x4.pb"
+# --- CHANGED: Use the Fastest Model (ESPCN) ---
+MODEL_PATH = "app/models/ESPCN_x4.pb"
 DOWNLOAD_DIR = "phone_gallery/downloads"
 ENHANCED_DIR = "phone_gallery/enhanced"
+
+# --- SPEED HACK: Process every Nth frame (1 = all frames, 2 = half frames) ---
+FRAME_SKIP = 2 
 
 def init_models():
     if not os.path.exists(MODEL_PATH):
         print(f"⚠️ Model missing at {MODEL_PATH}")
         return None
+    
+    # --- SPEED HACK: Turn on Hardware Acceleration for CV2 ---
+    cv2.ocl.setUseOpenCL(True)
+    
     sr = dnn_superres.DnnSuperResImpl_create()
     sr.readModel(MODEL_PATH)
-    # --- FIX: Set model to FSRCNN ---
-    sr.setModel("fsrcnn", 4)
+    # --- CHANGED: Model name is 'espcn' ---
+    sr.setModel("espcn", 4)
     return sr
 
 def simulate_incident_response():
@@ -45,26 +52,27 @@ def simulate_incident_response():
     ai_processor = init_models()
     if ai_processor is None: return
 
-    # --- KEEP MP4 EXTENSION ---
     output_path = os.path.join(ENHANCED_DIR, f"ENHANCED_{filename}")
     
     cap = cv2.VideoCapture(local_raw_path)
     if not cap.isOpened(): return
 
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    # Reduce output FPS if we are skipping frames
+    original_fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    target_fps = original_fps / FRAME_SKIP
+    
     ret, frame = cap.read()
     h, w = frame.shape[:2]
     
     cap.release()
     cap = cv2.VideoCapture(local_raw_path)
     
-    # --- USE 'mp4v' (SAFE FOR MAC) ---
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     
     print(f"   📉 Input: {w}x{h}")
-    print(f"   📈 Target: {w*4}x{h*4} (Using Fast FSRCNN)")
+    print(f"   📈 Target: {w*4}x{h*4} (Model: ESPCN | Speed: {FRAME_SKIP}x)")
     
-    out = cv2.VideoWriter(output_path, fourcc, fps, (w*4, h*4))
+    out = cv2.VideoWriter(output_path, fourcc, target_fps, (w*4, h*4))
     
     count = 0
     start_time = time.time()
@@ -73,11 +81,13 @@ def simulate_incident_response():
         ret, frame = cap.read()
         if not ret: break
         
-        enhanced = ai_processor.upsample(frame)
-        out.write(enhanced)
+        # --- SPEED HACK: Skip frames ---
+        if count % FRAME_SKIP == 0:
+            enhanced = ai_processor.upsample(frame)
+            out.write(enhanced)
+            print(f"   ... Processed Frame {count} (Skipped {FRAME_SKIP-1})", end='\r')
         
         count += 1
-        print(f"   ... Processed Frame {count}", end='\r')
         
     cap.release()
     out.release()
