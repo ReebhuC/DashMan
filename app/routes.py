@@ -1,26 +1,14 @@
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, current_app
 from . import db
 from .models import Incident
 
 api_bp = Blueprint("api", __name__)
 
-# Existing API routes
+# --- EXISTING ROUTES ---
 @api_bp.route("/events", methods=["POST"])
 def create_event():
     data = request.get_json() or {}
-    required_fields = ["trip_id", "timestamp"]
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
-
-    incident = Incident(
-        trip_id=data["trip_id"],
-        timestamp=data.get("timestamp"),
-        speed=data.get("speed"),
-        acceleration=data.get("acceleration"),
-        lat=data.get("lat"),
-        lng=data.get("lng"),
-    )
+    incident = Incident(trip_id=data.get("trip_id"), timestamp=data.get("timestamp"))
     db.session.add(incident)
     db.session.commit()
     return jsonify({"id": incident.id}), 201
@@ -28,37 +16,28 @@ def create_event():
 @api_bp.route("/incidents", methods=["GET"])
 def list_incidents():
     incidents = Incident.query.order_by(Incident.timestamp.desc()).all()
-    result = []
-    for inc in incidents:
-        result.append({
-            "id": inc.id,
-            "trip_id": inc.trip_id,
-            "timestamp": inc.timestamp,
-            "speed": inc.speed,
-            "acceleration": inc.acceleration,
-            "lat": inc.lat,
-            "lng": inc.lng,
-        })
+    result = [{"id": i.id, "time": i.timestamp} for i in incidents]
     return jsonify(result), 200
 
-# NEW: Frontend routes (added to existing file)
+# --- FRONTEND ROUTES ---
 @api_bp.route("/")
 def home():
     return render_template("index.html")
 
 @api_bp.route("/incidents-page")
 def incidents_page():
-    # Fetch real incidents from database
     incidents_data = Incident.query.order_by(Incident.timestamp.desc()).all()
+    formatted = [{"time": i.timestamp, "type": "incident", "location": "Recorded"} for i in incidents_data]
+    return render_template("incidents.html", incidents=formatted)
+
+# --- THE MISSING LINK: AI TRIGGER ---
+@api_bp.route('/trigger_incident', methods=['GET', 'POST'])
+def trigger_incident():
+    # Access the AI engine we attached in run.py
+    ai = current_app.config.get('AI_ENGINE')
+    if ai:
+        # Call the new "Lightweight" server function
+        result = ai.fake_camera_enhance()
+        return jsonify(result)
     
-    # Format for template
-    formatted_incidents = []
-    for inc in incidents_data:
-        formatted_incidents.append({
-            "time": inc.timestamp,
-            "type": "harsh_brake" if inc.acceleration and inc.acceleration < 0 else "harsh_accel",
-            "speed": inc.speed or "N/A",
-            "location": f"{inc.lat}, {inc.lng}" if inc.lat and inc.lng else "Unknown"
-        })
-    
-    return render_template("incidents.html", incidents=formatted_incidents)
+    return jsonify({"error": "AI Engine not loaded"}), 500
