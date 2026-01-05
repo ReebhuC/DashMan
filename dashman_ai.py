@@ -1,5 +1,4 @@
 import cv2
-from cv2 import dnn_superres
 import sqlite3
 import threading
 import time
@@ -25,19 +24,36 @@ CONFIG = {
 
 class DashManAI:
     def __init__(self):
+        print("--- 🚀 Initializing DashMan AI ---")
+
         self.stream_app = Flask(__name__)
         self.streaming = False
-        self.camera_source = 0 
-        
-        # --- SPEED HACK: Turn on GPU Acceleration for Live Stream ---
+        self.camera_source = 0
+
+        # Enable OpenCL if available
         cv2.ocl.setUseOpenCL(True)
-        
-        self.sr_live = dnn_superres.DnnSuperResImpl_create()
+
+        # ---- Super Resolution Safe Init ----
+        self.sr_live = None
+        try:
+            if hasattr(cv2, "dnn_superres"):
+                if hasattr(cv2.dnn_superres, "DnnSuperResImpl_create"):
+                    self.sr_live = cv2.dnn_superres.DnnSuperResImpl_create()
+                elif hasattr(cv2.dnn_superres, "createSuperResolution"):
+                    self.sr_live = cv2.dnn_superres.createSuperResolution()
+        except Exception as e:
+            print(f"⚠️ Super-resolution unavailable: {e}")
+
+        if self.sr_live is None:
+            print("⚠️ Running WITHOUT AI super-resolution (fallback mode)")
+
+        # Continue normal init
         self._load_models()
         self.stream_app.add_url_rule('/', 'index', self._index)
         self.stream_app.add_url_rule('/stream/legacy', 'stream_legacy', self._stream_legacy)
         self.stream_app.add_url_rule('/stream/ai', 'stream_ai', self._stream_ai)
         self._init_system()
+
 
     def _load_models(self):
         # --- CHANGED: Use ESPCN x2 for Fastest Live Streaming ---
@@ -46,9 +62,12 @@ class DashManAI:
         if os.path.exists(live_path):
             try:
                 print(f"⚡ Loading Live Model: {live_path}")
+                if self.sr_live is None:
+                    return
+
                 self.sr_live.readModel(live_path)
-                # Model name is 'espcn', scale is 2
-                self.sr_live.setModel("espcn", 2) 
+                self.sr_live.setModel("espcn", 2)
+
             except Exception as e:
                 print(f"❌ Model Load Error: {e}")
         else:
