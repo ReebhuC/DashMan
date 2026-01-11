@@ -1,22 +1,44 @@
-# --- Python & System Junk ---
-__pycache__/
-*.pyc
-.DS_Store
-.venv/
-env/
+# ========================
+# Android / Gradle
+# ========================
+.gradle/
+build/
+**/build/
 
-# --- DashMan Generated Files ---
-app.db
+# Local configuration files
+local.properties
+
+# ========================
+# IntelliJ / Android Studio
+# ========================
+.idea/
+*.iml
+
+# ========================
+# Kotlin / Java
+# ========================
+*.class
+
+# ========================
+# OS junk
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# Logs
+# ========================
 *.log
 
-# --- Large Media & Models ---
-# We ignore generated videos, but keep the folder structure
-phone_gallery/downloads/*
-phone_gallery/enhanced/*
-app/static/incident_*.mp4
+# ========================
+# Python virtualenv (your backend repo already had this)
+# ========================
+venv/
+.venv/
+__pycache__/
+*.pyc
 
-# Ignore the huge EDSR model (too big for GitHub free tier)
-app/models/EDSR_x4.pb
-
-# Keep FSRCNN (it's small enough to commit)
-!app/models/FSRCNN*.pb
+# ========================
+# Node (if ever added)
+# ========================
+node_modules/
