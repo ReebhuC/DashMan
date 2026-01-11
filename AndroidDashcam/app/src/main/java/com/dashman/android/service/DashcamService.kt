@@ -79,13 +79,14 @@ class DashcamService : LifecycleService() {
     private fun createNotification(): Notification {
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-        
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("DashMan Active")
             .setContentText("Recording & Monitoring...")
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentIntent(pendingIntent)
             .build()
+
     }
 
     private fun createNotificationChannel() {

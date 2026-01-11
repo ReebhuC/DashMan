@@ -69,6 +69,8 @@ dependencies {
 
     // MP4Parser for merging
     implementation("com.googlecode.mp4parser:isoparser:1.1.22")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
 
 
     testImplementation("junit:junit:4.13.2")
