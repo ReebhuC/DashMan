@@ -114,15 +114,35 @@ class CameraBufferManager(private val context: Context) {
         }
     }
 
+    private var isIncidentActive = false
+
+    fun setIncidentCapture(active: Boolean) {
+        synchronized(bufferFiles) {
+            isIncidentActive = active
+            if (!active) {
+                // If turning off, enforce buffer size immediately
+                while (bufferFiles.size > BUFFER_SIZE) {
+                    val oldFile = bufferFiles.removeFirst()
+                    if (oldFile.exists()) oldFile.delete()
+                }
+            }
+        }
+    }
+
     private fun manageBuffer(newFile: File) {
         synchronized(bufferFiles) {
             bufferFiles.addLast(newFile)
-            while (bufferFiles.size > BUFFER_SIZE) {
-                val oldFile = bufferFiles.removeFirst()
-                if (oldFile.exists()) {
-                    oldFile.delete()
-                    Log.d(TAG, "Deleted old segment: ${oldFile.name}")
+            
+            if (!isIncidentActive) {
+                while (bufferFiles.size > BUFFER_SIZE) {
+                    val oldFile = bufferFiles.removeFirst()
+                    if (oldFile.exists()) {
+                        oldFile.delete()
+                        Log.d(TAG, "Deleted old segment: ${oldFile.name}")
+                    }
                 }
+            } else {
+                Log.d(TAG, "Incident active: Keeping segment ${newFile.name}")
             }
         }
     }

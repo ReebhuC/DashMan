@@ -11,6 +11,7 @@ import com.dashman.android.sensor.SensorData
 import com.dashman.android.sensor.SensorManagerModule
 import com.dashman.android.upload.UploadManager
 import com.google.gson.Gson
+import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -31,7 +32,8 @@ class IncidentStateMachine(
     enum class State {
         BUFFERING,
         INCIDENT_ACTIVE,
-        FINALIZING
+        FINALIZING,
+        COOLDOWN
     }
 
     private var currentState = State.BUFFERING
@@ -50,6 +52,13 @@ class IncidentStateMachine(
     private val scope = CoroutineScope(Dispatchers.IO)
     
     private var incidentStartTime = 0L
+    private var lastToastTime = 0L
+
+    private fun showToast(msg: String) {
+        stateHandler.post {
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     fun start() {
         sensorManager.onSensorDataListener = { data ->
@@ -65,7 +74,19 @@ class IncidentStateMachine(
     }
 
     private fun processSensorData(data: SensorData) {
-        if (currentState == State.FINALIZING) return 
+        if (currentState == State.FINALIZING) return
+        
+        if (currentState == State.COOLDOWN) {
+             val magnitude = sqrt(data.x * data.x + data.y * data.y + data.z * data.z)
+             if (magnitude > ACCEL_THRESHOLD) {
+                 // Debounce toast to avoid spamming
+                 if (System.currentTimeMillis() - lastToastTime > 2000) {
+                     showToast("Cooldown Active! Ignored.")
+                     lastToastTime = System.currentTimeMillis()
+                 }
+             }
+             return
+        } 
 
         val magnitude = sqrt(data.x * data.x + data.y * data.y + data.z * data.z)
         
@@ -93,7 +114,8 @@ class IncidentStateMachine(
         incidentStartTime = System.currentTimeMillis()
         lastTriggerTime = incidentStartTime
         
-        // 1. Lock pre-event buffer
+        // 1. Lock pre-event buffer & Enable Incident Mode (prevent deletion)
+        cameraBufferManager.setIncidentCapture(true)
         val preEventFiles = cameraBufferManager.lockBufferForIncident()
         activeIncidentFiles.addAll(preEventFiles)
         
@@ -122,6 +144,7 @@ class IncidentStateMachine(
             // Move pre-event files to incident dir
             // Implementation detail: simplified for now.
         }
+        showToast("Incident Triggered!")
     }
     
     private fun checkEndConditions() {
@@ -135,9 +158,21 @@ class IncidentStateMachine(
     }
     
     private fun finalizeIncident() {
-        Log.i(TAG, "Finalizing Incident...")
-        currentState = State.FINALIZING
-        
+        // Calculate duration and switch to COOLDOWN
+        val now = System.currentTimeMillis()
+        val incidentDuration = now - incidentStartTime
+        currentState = State.COOLDOWN
+        val seconds = incidentDuration / 1000
+        Log.i(TAG, "Entering Cooldown for ${incidentDuration}ms")
+        showToast("Recording Saved. Cooldown: ${seconds}s")
+
+        // Schedule exit from cooldown
+        stateHandler.postDelayed({
+            currentState = State.BUFFERING
+            Log.i(TAG, "Cooldown complete. Ready for new incidents.")
+            showToast("Ready for new incidents")
+        }, incidentDuration)
+
         scope.launch {
             // 1. Get ALL current files from buffer (includes the post-trigger segments)
             // Note: This overlaps with pre-buffer if we aren't careful.
@@ -169,6 +204,7 @@ class IncidentStateMachine(
             }
             
             // Reset
+            cameraBufferManager.setIncidentCapture(false)
             currentState = State.BUFFERING
             activeIncidentFiles.clear()
         }
