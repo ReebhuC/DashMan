@@ -4,8 +4,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'app.db')}"
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MONGO_URI = "mongodb://localhost:27017/dashman"
     SECRET_KEY = "dev"
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 
