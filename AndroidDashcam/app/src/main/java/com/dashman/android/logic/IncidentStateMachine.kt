@@ -39,7 +39,9 @@ class IncidentStateMachine(
     private var currentState = State.BUFFERING
     
     // Configurable thresholds
-    private val ACCEL_THRESHOLD = 15.0f // m/s^2 (approx 1.5G)
+    // Configurable thresholds
+    private var ACCEL_THRESHOLD = 15.0f // m/s^2 (Default)
+    private var GENERATE_OVERLAY = true
     private val SAFETY_COOLDOWN_MS = 5000L // 5 seconds of calm to end incident
     private val MAX_INCIDENT_DURATION_MS = 120_000L // 2 mins max
     
@@ -61,6 +63,7 @@ class IncidentStateMachine(
     }
 
     fun start() {
+        updateSettings()
         sensorManager.onSensorDataListener = { data ->
             processSensorData(data)
         }
@@ -199,6 +202,28 @@ class IncidentStateMachine(
                 // 3. Save Metadata
                 saveMetadata(incidentDir)
                 
+                // 3b. Generate Subtitles (Overlay)
+                if (GENERATE_OVERLAY) {
+                    try {
+                        // Infer start time from first filename (VID_yyyyMMdd_HHmmss_SSS.mp4)
+                        val name = sortedFiles.first().name
+                        val dateStr = name.substringAfter("VID_").substringBefore(".mp4")
+                        val format = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US)
+                        val startTime = format.parse(dateStr)?.time ?: System.currentTimeMillis()
+                        
+                        val srtFile = File(incidentDir, "incident_clip.srt")
+                        com.dashman.android.upload.SubtitleGenerator.generateSrt(
+                            startTime,
+                            VideoMerger.getDuration(finalVideo),
+                            gpsManager.getBufferedData(),
+                            srtFile
+                        )
+                        Log.i(TAG, "Generated subtitles at ${srtFile.absolutePath}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to generate subtitles", e)
+                    }
+                }
+
                 // 4. Trigger Upload
                 UploadManager.enqueueUpload(context, incidentDir.absolutePath)
                 Log.i(TAG, "Incident saved at: ${finalVideo.absolutePath}")
@@ -219,6 +244,21 @@ class IncidentStateMachine(
         
         File(dir, "sensor_log.json").writeText(gson.toJson(sensors))
         File(dir, "gps_log.json").writeText(gson.toJson(gps))
+    }
+    private fun updateSettings() {
+        val prefs = context.getSharedPreferences("dashman_prefs", Context.MODE_PRIVATE)
+        ACCEL_THRESHOLD = prefs.getFloat("sensitivity_threshold", 15.0f) * 10
+        // Wait, Settings stores "G" (e.g. 1.5). But code uses m/s^2? 
+        // Code comment says "1.5G". 1G = 9.8m/s^2.
+        // Line 42 says "15.0f // m/s^2 (approx 1.5G)".
+        // Meaning the var name ACCEL_THRESHOLD expects m/s^2.
+        // My settings slider saves "1.5".
+        // SO I need to convert.
+        val gVal = prefs.getFloat("sensitivity_threshold", 1.5f)
+        ACCEL_THRESHOLD = gVal * 9.81f
+        
+        GENERATE_OVERLAY = prefs.getBoolean("video_overlay_srt", true)
+        Log.i(TAG, "Settings updated: Threshold=${ACCEL_THRESHOLD} ($gVal G)")
     }
 
     companion object {

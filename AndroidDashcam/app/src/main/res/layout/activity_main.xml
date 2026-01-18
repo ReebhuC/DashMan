@@ -27,4 +27,11 @@
         android:text="Stop Dashcam"
         android:layout_marginTop="16dp"/>
 
+    <Button
+        android:id="@+id/settingsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Settings"
+        android:layout_marginTop="16dp"/>
+
 </LinearLayout>

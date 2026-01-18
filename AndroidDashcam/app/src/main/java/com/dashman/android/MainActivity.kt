@@ -45,6 +45,11 @@ class MainActivity : AppCompatActivity() {
         stopButton.setOnClickListener {
             stopService()
         }
+        
+        findViewById<Button>(R.id.settingsButton).setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            startActivity(intent)
+        }
     }
     
     private fun startService() {

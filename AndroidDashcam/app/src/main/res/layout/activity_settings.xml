@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Collision Sensitivity (G-Force)"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/sensitivityValue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1.5 G"
+            android:layout_marginTop="8dp"/>
+
+        <SeekBar
+            android:id="@+id/seekSensitivity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="50"
+            android:progress="15"
+            android:layout_marginTop="8dp" />
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Higher value = Harder impact needed"
+            android:textSize="12sp"
+            android:textColor="#757575"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pre-Event Buffer Duration"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:id="@+id/radioGroupBuffer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="8dp">
+
+            <RadioButton
+                android:id="@+id/rb30s"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="30 Seconds" />
+
+            <RadioButton
+                android:id="@+id/rb60s"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="60 Seconds" />
+                
+            <RadioButton
+                android:id="@+id/rb120s"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="120 Seconds" />
+        </RadioGroup>
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Video Overlay"
+            android:textSize="18sp"
+            android:textStyle="bold" 
+            android:layout_marginTop="24dp"/>
+
+        <Switch
+            android:id="@+id/switchOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Generate GPS/Speed Subtitles (.srt)"
+            android:layout_marginTop="8dp"
+            android:checked="true"/>
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Save Settings"
+            android:layout_marginTop="32dp" />
+
+    </LinearLayout>
+</ScrollView>

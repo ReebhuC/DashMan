@@ -23,7 +23,7 @@ class CameraBufferManager(private val context: Context) {
     private var cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     
     private val bufferFiles = ArrayDeque<File>()
-    private val BUFFER_SIZE = 3 // Keep last 3 segments (30 seconds)
+    private var BUFFER_SIZE = 3 // Default 30s, updated from prefs
     private val SEGMENT_DURATION_MS = 10_000L
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -31,6 +31,7 @@ class CameraBufferManager(private val context: Context) {
     private var onNextFinalize: (() -> Unit)? = null
     
     fun startCamera(lifecycleOwner: LifecycleOwner) {
+        updateSettings()
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
@@ -189,6 +190,14 @@ class CameraBufferManager(private val context: Context) {
             // Return copy of current buffer
             return ArrayList(bufferFiles)
         }
+    }
+
+    private fun updateSettings() {
+        val prefs = context.getSharedPreferences("dashman_prefs", Context.MODE_PRIVATE)
+        val bufferSeconds = prefs.getInt("buffer_seconds", 30)
+        // Each segment is 10s
+        BUFFER_SIZE = (bufferSeconds / 10).coerceAtLeast(1)
+        Log.i(TAG, "Buffer size set to $BUFFER_SIZE segments ($bufferSeconds seconds)")
     }
 
     companion object {
