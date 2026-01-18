@@ -174,6 +174,9 @@ class IncidentStateMachine(
         }, incidentDuration)
 
         scope.launch {
+            // 0. Force-save the current segment so we don't lose the crash itself
+            cameraBufferManager.flushCurrentSegment()
+
             // 1. Get ALL current files from buffer (includes the post-trigger segments)
             // Note: This overlaps with pre-buffer if we aren't careful.
             // A robust system uses unique file IDs.

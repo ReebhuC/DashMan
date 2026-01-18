@@ -23,10 +23,12 @@ class CameraBufferManager(private val context: Context) {
     private var cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     
     private val bufferFiles = ArrayDeque<File>()
-    private val BUFFER_SIZE = 6 // Keep last 6 segments (60 seconds)
+    private val BUFFER_SIZE = 3 // Keep last 3 segments (30 seconds)
     private val SEGMENT_DURATION_MS = 10_000L
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var segmentTimerJob: Job? = null
+    private var onNextFinalize: (() -> Unit)? = null
     
     fun startCamera(lifecycleOwner: LifecycleOwner) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -88,6 +90,8 @@ class CameraBufferManager(private val context: Context) {
                         if (!recordEvent.hasError()) {
                             Log.d(TAG, "Recording finished: ${videoFile.name}")
                             manageBuffer(videoFile)
+                            onNextFinalize?.invoke()
+                            onNextFinalize = null
                         } else {
                             activeRecording?.close()
                             activeRecording = null
@@ -99,7 +103,7 @@ class CameraBufferManager(private val context: Context) {
     }
 
     private fun scheduleNextSegment() {
-        scope.launch {
+        segmentTimerJob = scope.launch {
             delay(SEGMENT_DURATION_MS)
             // Stop current, which prompts Finalize, which we can then start next?
             // To minimize gap, we might want to start next immediately after stop.
@@ -112,6 +116,24 @@ class CameraBufferManager(private val context: Context) {
             // Real gapless requires low-level MediaCodec or vendor extensions.
             startSegmentRecording() 
         }
+    }
+
+    suspend fun flushCurrentSegment() = suspendCancellableCoroutine<Unit> { cont ->
+        // 1. Cancel the automatic timer so we don't stop the NEXT one prematurely
+        segmentTimerJob?.cancel()
+
+        // 2. Setup the latch
+        // We expect the currently running recording to finalize soon.
+        onNextFinalize = {
+            if (cont.isActive) cont.resume(Unit) { }
+        }
+
+        // 3. Stop (triggers Finalize)
+        activeRecording?.stop()
+        activeRecording = null
+
+        // 4. Start next immediately (to minimize gap)
+        startSegmentRecording()
     }
 
     private var isIncidentActive = false
