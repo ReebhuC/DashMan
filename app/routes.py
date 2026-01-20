@@ -24,7 +24,9 @@ def incidents_page():
             "type": "incident",
             "location": f"{i.start_lat}, {i.start_lng}",
             "speed": f"{i.max_speed} km/h",
-            "id": i.id
+            "id": i.id,
+            "enhanced_video": i.enhanced_video_path,
+            "downscaled_video": i.downscaled_video_path
         })
         
     return render_template("incidents.html", incidents=formatted)
@@ -136,4 +138,50 @@ def trigger_incident():
         result = ai.fake_camera_enhance()
         return jsonify(result)
     
-    return jsonify({"error": "AI Engine not loaded"}), 500
+@api_bp.route("/incident/<int:incident_id>/enhance")
+def enhance_incident_video(incident_id):
+    incident = Incident.query.get_or_404(incident_id)
+    
+    if not incident.video_path or not os.path.exists(incident.video_path):
+        return jsonify({"error": "Original video not found"}), 404
+        
+    ai = current_app.config.get('AI_ENGINE')
+    if not ai:
+        return jsonify({"error": "AI Engine not loaded"}), 500
+        
+    # Output path
+    base, ext = os.path.splitext(incident.video_path)
+    enhanced_path = f"{base}_enhanced{ext}"
+    
+    # Run AI (Blocking call - simplistic for now)
+    # returns: success, path_or_error
+    result, msg = ai.upscale_video_file(incident.video_path, enhanced_path)
+    
+    if result is True:
+        incident.enhanced_video_path = enhanced_path
+        incident.downscaled_video_path = msg # msg is the path in success case
+        db.session.commit()
+        return jsonify({
+            "status": "success", 
+            "enhanced_path": enhanced_path,
+            "downscaled_path": incident.downscaled_video_path
+        })
+    else:
+        return jsonify({"error": msg}), 500
+
+@api_bp.route("/incident/<int:incident_id>/download_enhanced")
+def download_enhanced_video(incident_id):
+    incident = Incident.query.get_or_404(incident_id)
+    if not incident.enhanced_video_path or not os.path.exists(incident.enhanced_video_path):
+        return abort(404, description="Enhanced video not ready")
+        
+    return send_file(incident.enhanced_video_path, as_attachment=True)
+
+@api_bp.route("/incident/<int:incident_id>/download_downscaled")
+def download_downscaled_video(incident_id):
+    incident = Incident.query.get_or_404(incident_id)
+    if not incident.downscaled_video_path or not os.path.exists(incident.downscaled_video_path):
+        return abort(404, description="Downscaled video not ready")
+        
+    return send_file(incident.downscaled_video_path, as_attachment=True)
+

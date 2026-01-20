@@ -93,7 +93,8 @@ class DashManAI:
                 processed BOOLEAN,
                 incident_type TEXT,
                 status TEXT,
-                raw_video_path TEXT
+                raw_video_path TEXT,
+                enhanced_video_path TEXT
         )''')
         conn.commit()
         conn.close()
@@ -145,6 +146,71 @@ class DashManAI:
             "download_url": f"http://127.0.0.1:5000/{rel_path}",
             "filename": filename
         }
+
+    def upscale_video_file(self, input_path, output_path):
+        if self.sr_live is None:
+            return False, "AI Model not loaded"
+            
+        if not os.path.exists(input_path):
+            return False, "Input file not found"
+
+        try:
+            cap = cv2.VideoCapture(input_path)
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            
+            # ESPCN x2 upscaling
+            # We want Output = Input Resolution.
+            # So we must DOWNSCALE inputs by 0.5x first.
+            
+            # Setup Paths
+            base, ext = os.path.splitext(output_path)
+            downscaled_path = output_path.replace("_enhanced", "_downscaled") # Assumption on naming
+            
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            
+            # Writer 1: Enhanced (Full Res)
+            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            
+            # Writer 2: Downscaled (Half Res - 360p)
+            # wait, user wants to compare. 
+            # If we save the 360p file, they can see the blur.
+            # OR do we want to resize it back up to 720p (nearest neighbor) to show the pixelation?
+            # User said: "download the downscaled video"
+            # I will save the RAW 360p file.
+            out_small = cv2.VideoWriter(downscaled_path, fourcc, fps, (width // 2, height // 2))
+            
+            frame_count = 0
+            while True:
+                ret, frame = cap.read()
+                if not ret: break
+                
+                # 1. Downscale (to make the AI work for restoration)
+                small = cv2.resize(frame, (width // 2, height // 2), interpolation=cv2.INTER_AREA)
+                out_small.write(small)
+                
+                # 2. Upscale
+                enhanced = self.sr_live.upsample(small)
+                
+                # 3. Ensure exact match (sometimes model adds 1-2px padding)
+                if enhanced.shape[1] != width or enhanced.shape[0] != height:
+                    enhanced = cv2.resize(enhanced, (width, height))
+                    
+                out.write(enhanced)
+                frame_count += 1
+                
+            cap.release()
+            out.release()
+            out_small.release()
+            print(f"✅ Upscaling complete: {frame_count} frames. Saved Downscaled too: {downscaled_path}")
+            return True, downscaled_path
+            print(f"✅ Upscaling complete: {frame_count} frames")
+            return True, "Success"
+            
+        except Exception as e:
+            print(f"❌ Upscaling failed: {e}")
+            return False, str(e)
 
     # Stream functions
     def live_2x(self):

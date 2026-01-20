@@ -19,6 +19,8 @@ class Incident(db.Model):
     # Metadata
     directory = db.Column(db.String(500))
     video_path = db.Column(db.String(500))
+    enhanced_video_path = db.Column(db.String(500)) # For AI Upscaled version
+    downscaled_video_path = db.Column(db.String(500)) # For "Before AI" version (Comparison)
     
     # Telemetry
     max_speed = db.Column(db.Float, default=0.0)
@@ -39,5 +41,7 @@ class Incident(db.Model):
             "max_speed": self.max_speed,
             "start_lat": self.start_lat,
             "start_lng": self.start_lng,
-            "video_path": self.video_path
+            "video_path": self.video_path,
+            "enhanced_video_path": self.enhanced_video_path,
+            "downscaled_video_path": self.downscaled_video_path
         }

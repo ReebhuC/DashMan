@@ -27,7 +27,7 @@ class SettingsActivity : AppCompatActivity() {
 
         // Load saved values
         val savedThreshold = prefs.getFloat("sensitivity_threshold", 15.0f)
-        val savedBuffer = prefs.getInt("buffer_seconds", 30)
+        val savedBuffer = prefs.getInt("buffer_seconds", 10) // Default 10s
         val savedOverlay = prefs.getBoolean("video_overlay_srt", true)
 
         // Set UI state
@@ -62,10 +62,10 @@ class SettingsActivity : AppCompatActivity() {
             // Save Buffer
             val selectedId = radioGroup.checkedRadioButtonId
             val bufferSeconds = when (selectedId) {
-                R.id.rb30s -> 30
+                R.id.rb30s -> 10
                 R.id.rb60s -> 60
                 R.id.rb120s -> 120
-                else -> 30
+                else -> 10
             }
             editor.putInt("buffer_seconds", bufferSeconds)
             

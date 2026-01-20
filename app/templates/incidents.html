@@ -25,13 +25,52 @@
       <td>{{ inc.type }}</td>
       <td>{{ inc.speed }}</td>
       <td>{{ inc.location }}</td>
-      <td><a href="/incident/{{ inc.id }}/video">Download</a></td>
+      <td>
+        <a href="/incident/{{ inc.id }}/video">Original</a>
+        |
+        {% if inc.enhanced_video %}
+        ✅ <a href="/incident/{{ inc.id }}/download_enhanced">Enhanced</a>
+        | <a href="/incident/{{ inc.id }}/download_downscaled">Downscaled</a>
+        {% else %}
+        <button onclick="enhanceVideo('{{ inc.id }}', this)">Enhance (AI)</button>
+        <span id="status-{{ inc.id }}"></span>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </table>
   {% else %}
   <p>No incidents yet.</p>
   {% endif %}
+
+  <script>
+    function enhanceVideo(id, btn) {
+      btn.disabled = true;
+      btn.innerText = "Enhancing...";
+      const statusSpan = document.getElementById('status-' + id);
+      statusSpan.innerText = " ⏳ Processing...";
+
+      fetch('/incident/' + id + '/enhance')
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            btn.style.display = 'none';
+            statusSpan.innerHTML = ` 
+                ✅ <a href="/incident/${id}/download_enhanced">Enhanced</a> 
+                | <a href="/incident/${id}/download_downscaled">Downscaled</a>`;
+          } else {
+            btn.disabled = false;
+            btn.innerText = "Enhance (AI)";
+            statusSpan.innerText = " ❌ Error: " + data.error;
+          }
+        })
+        .catch(err => {
+          btn.disabled = false;
+          btn.innerText = "Enhance (AI)";
+          statusSpan.innerText = " ❌ Network Error";
+        });
+    }
+  </script>
 </body>
 
 </html>

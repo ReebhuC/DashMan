@@ -101,8 +101,8 @@ class IncidentStateMachine(
             }
             State.INCIDENT_ACTIVE -> {
                 if (magnitude > ACCEL_THRESHOLD) {
-                    lastTriggerTime = System.currentTimeMillis() // Reset cooldown
-                    Log.d(TAG, "Re-trigger during incident")
+                    // lastTriggerTime = System.currentTimeMillis() // Reset cooldown (User requested fixed 5s)
+                    Log.d(TAG, "High G during incident (Re-trigger ignored for fixed duration)")
                 }
                 
                 checkEndConditions()
