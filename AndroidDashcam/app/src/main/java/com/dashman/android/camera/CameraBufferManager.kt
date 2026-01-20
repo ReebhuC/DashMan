@@ -84,7 +84,7 @@ class CameraBufferManager(private val context: Context) {
             .start(ContextCompat.getMainExecutor(context)) { recordEvent ->
                 when(recordEvent) {
                     is VideoRecordEvent.Start -> {
-                        Log.d(TAG, "Recording started: ${videoFile.name}")
+                        Log.d(TAG, "Recording started: ${videoFile.name} (Buffer: ${bufferFiles.size}/$BUFFER_SIZE)")
                         scheduleNextSegment()
                     }
                     is VideoRecordEvent.Finalize -> {
@@ -94,9 +94,12 @@ class CameraBufferManager(private val context: Context) {
                             onNextFinalize?.invoke()
                             onNextFinalize = null
                         } else {
-                            activeRecording?.close()
-                            activeRecording = null
                             Log.e(TAG, "Recording error: ${recordEvent.error}")
+                            // Only close if it's the current one? 
+                            // Actually, if error, we might need to restart loop.
+                            if (activeRecording == null) {
+                                startSegmentRecording()
+                            }
                         }
                     }
                 }
@@ -109,6 +112,7 @@ class CameraBufferManager(private val context: Context) {
             // Stop current, which prompts Finalize, which we can then start next?
             // To minimize gap, we might want to start next immediately after stop.
             // But we need to call stop() on activeRecording.
+            Log.d(TAG, "Segment timer fired. Stopping current segment.")
             activeRecording?.stop()
             activeRecording = null
             
@@ -197,7 +201,7 @@ class CameraBufferManager(private val context: Context) {
         val bufferSeconds = prefs.getInt("buffer_seconds", 30)
         // Each segment is 10s
         BUFFER_SIZE = (bufferSeconds / 10).coerceAtLeast(1)
-        Log.i(TAG, "Buffer size set to $BUFFER_SIZE segments ($bufferSeconds seconds)")
+        Log.i(TAG, "Settings Updated: BufferSeconds=$bufferSeconds -> BufferSize=$BUFFER_SIZE segments")
     }
 
     companion object {
