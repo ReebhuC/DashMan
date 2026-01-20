@@ -8,7 +8,7 @@ import android.util.Log
 import com.google.android.gms.location.*
 import java.util.concurrent.ConcurrentLinkedDeque
 
-data class LocationData(
+data class GPSData(
     val timestamp: Long,
     val latitude: Double,
     val longitude: Double,
@@ -21,7 +21,7 @@ class GPSManager(private val context: Context) {
     private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
     private val locationCallback: LocationCallback
     
-    private val dataBuffer = ConcurrentLinkedDeque<LocationData>()
+    private val dataBuffer = ConcurrentLinkedDeque<GPSData>()
     private val BUFFER_DURATION_MS = 60_000L
 
     init {
@@ -48,7 +48,7 @@ class GPSManager(private val context: Context) {
     }
 
     private fun handleLocation(location: Location) {
-        val data = LocationData(
+        val data = GPSData(
             timestamp = location.time,
             latitude = location.latitude,
             longitude = location.longitude,
@@ -66,7 +66,7 @@ class GPSManager(private val context: Context) {
         }
     }
     
-    fun getBufferedData(): List<LocationData> {
+    fun getBufferedData(): List<GPSData> {
         return ArrayList(dataBuffer)
     }
 }

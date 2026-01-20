@@ -2,7 +2,8 @@ from flask import Blueprint, request, jsonify, render_template, current_app
 import os
 import json
 from datetime import datetime
-from . import mongo
+from . import db
+from .models import Incident
 
 api_bp = Blueprint("api", __name__)
 
@@ -13,16 +14,16 @@ def home():
 
 @api_bp.route("/incidents-page")
 def incidents_page():
-    # Query MongoDB: sort by timestamp desc
-    incidents_data = list(mongo.db.incidents.find().sort("timestamp", -1))
+    # Query SQLite: sort by timestamp desc
+    incidents_data = Incident.query.order_by(Incident.timestamp.desc()).all()
     
     formatted = []
     for i in incidents_data:
         formatted.append({
-            "time": i.get("timestamp"),
+            "time": i.timestamp,
             "type": "incident",
-            "location": f"{i.get('start_lat', 0)}, {i.get('start_lng', 0)}",
-            "speed": f"{i.get('max_speed', 0)} km/h"
+            "location": f"{i.start_lat}, {i.start_lng}",
+            "speed": f"{i.max_speed} km/h"
         })
         
     return render_template("incidents.html", incidents=formatted)
@@ -31,11 +32,8 @@ def incidents_page():
 
 @api_bp.route("/incidents", methods=["GET"])
 def list_incidents():
-    incidents = list(mongo.db.incidents.find().sort("timestamp", -1))
-    # Convert ObjectId to str for JSON
-    for i in incidents:
-        i["_id"] = str(i["_id"])
-    return jsonify(incidents), 200
+    incidents = Incident.query.order_by(Incident.timestamp.desc()).all()
+    return jsonify([i.to_dict() for i in incidents]), 200
 
 @api_bp.route("/incident/upload", methods=["POST"])
 def upload_incident():
@@ -99,24 +97,25 @@ def upload_incident():
         start_lat = first_point.get('latitude', 0.0)
         start_lng = first_point.get('longitude', 0.0)
 
-    # 5. Insert into MongoDB
-    incident_doc = {
-        "timestamp": datetime.now(),
-        "directory": incident_dir,
-        "video_path": video_path,
-        "max_speed": round(max_speed, 2),
-        "start_lat": start_lat,
-        "start_lng": start_lng,
-        "sensor_count": len(sensor_data),
-        "gps_count": len(gps_data),
-        "processed": False
-    }
-
-    result = mongo.db.incidents.insert_one(incident_doc)
+    # 5. Insert into SQLite
+    incident = Incident(
+        timestamp=datetime.now(),
+        directory=incident_dir,
+        video_path=video_path,
+        max_speed=round(max_speed, 2),
+        start_lat=start_lat,
+        start_lng=start_lng,
+        sensor_count=len(sensor_data),
+        gps_count=len(gps_data),
+        processed=False
+    )
+    
+    db.session.add(incident)
+    db.session.commit()
 
     return jsonify({
         "status": "success", 
-        "id": str(result.inserted_id),
+        "id": incident.id,
         "path": incident_dir
     }), 201
 

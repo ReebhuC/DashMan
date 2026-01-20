@@ -81,14 +81,19 @@ class DashManAI:
         c.execute('''CREATE TABLE IF NOT EXISTS incident (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT, 
-                incident_type TEXT, 
-                raw_video_path TEXT, 
-                status TEXT,
                 trip_id INTEGER,
-                speed FLOAT,
+                directory TEXT,
+                video_path TEXT,
+                max_speed FLOAT,
+                start_lat FLOAT,
+                start_lng FLOAT,
                 acceleration FLOAT,
-                lat FLOAT,
-                lng FLOAT
+                sensor_count INTEGER,
+                gps_count INTEGER,
+                processed BOOLEAN,
+                incident_type TEXT,
+                status TEXT,
+                raw_video_path TEXT
         )''')
         conn.commit()
         conn.close()

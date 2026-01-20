@@ -60,4 +60,15 @@ object VideoMerger {
             return false
         }
     }
+
+    fun getDuration(file: File): Long {
+         try {
+             val movie = MovieCreator.build(file.absolutePath)
+             val durationProp = movie.tracks.firstOrNull()?.duration ?: 0
+             val timescal = movie.tracks.firstOrNull()?.trackMetaData?.timescale ?: 1
+             return (durationProp * 1000) / timescal
+         } catch (e: Exception) {
+             return 0L
+         }
+    }
 }
