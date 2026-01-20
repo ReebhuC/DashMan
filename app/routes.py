@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template, current_app
+from flask import Blueprint, request, jsonify, render_template, current_app, send_file, abort
 import os
 import json
 from datetime import datetime
@@ -23,7 +23,8 @@ def incidents_page():
             "time": i.timestamp,
             "type": "incident",
             "location": f"{i.start_lat}, {i.start_lng}",
-            "speed": f"{i.max_speed} km/h"
+            "speed": f"{i.max_speed} km/h",
+            "id": i.id
         })
         
     return render_template("incidents.html", incidents=formatted)
@@ -118,6 +119,14 @@ def upload_incident():
         "id": incident.id,
         "path": incident_dir
     }), 201
+
+@api_bp.route("/incident/<int:incident_id>/video")
+def download_incident_video(incident_id):
+    incident = Incident.query.get_or_404(incident_id)
+    if not incident.video_path or not os.path.exists(incident.video_path):
+        return abort(404, description="Video file not found")
+        
+    return send_file(incident.video_path, as_attachment=True)
 
 # --- AI TRIGGER ( unchanged ) ---
 @api_bp.route('/trigger_incident', methods=['GET', 'POST'])
