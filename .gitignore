@@ -20,3 +20,5 @@ app/models/EDSR_x4.pb
 
 # Keep FSRCNN (it's small enough to commit)
 !app/models/FSRCNN*.pb
+venv/
+mobile_client/node_modules/
